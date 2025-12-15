@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:campus_lost_found/core/domain/item_photo.dart';
 import 'package:campus_lost_found/core/constants/categories.dart';
 
@@ -52,7 +53,9 @@ class PhotoCarousel extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
             clipBehavior: Clip.antiAlias,
-            child: photos[index].assetPath.startsWith('http')
+            child: photos[index].assetPath.isNotEmpty && 
+                   (photos[index].assetPath.startsWith('http://') || 
+                    photos[index].assetPath.startsWith('https://'))
                 ? Image.network(
                     photos[index].assetPath,
                     fit: BoxFit.cover,
@@ -67,11 +70,25 @@ class PhotoCarousel extends StatelessWidget {
                         ),
                       );
                     },
-                    errorBuilder: (context, _, __) {
+                    errorBuilder: (context, error, stackTrace) {
+                      debugPrint('[PhotoCarousel] Error loading image: $error');
+                      debugPrint('[PhotoCarousel] URL: ${photos[index].assetPath}');
                       return Center(
-                        child: Text(
-                          ItemCategories.icons[category] ?? '📦',
-                          style: const TextStyle(fontSize: 80),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              ItemCategories.icons[category] ?? '📦',
+                              style: const TextStyle(fontSize: 80),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Failed to load image',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                            ),
+                          ],
                         ),
                       );
                     },

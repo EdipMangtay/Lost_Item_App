@@ -46,7 +46,9 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1023506336504',
     projectId: 'campus-lost-found-83347',
     authDomain: 'campus-lost-found-83347.firebaseapp.com',
-    storageBucket: 'campus-lost-found-83347.firebasestorage.app',
+    // IMPORTANT: Use the bucket ID shown in Firebase Console (gs://...)
+    // For this project it should be 'campus-lost-found-83347.appspot.com'
+    storageBucket: 'campus-lost-found-83347.appspot.com',
     measurementId: 'G-60NXB5BQE4',
   );
 
@@ -55,7 +57,7 @@ class DefaultFirebaseOptions {
     appId: '1:1023506336504:android:f79eb86ff050d706ec090d',
     messagingSenderId: '1023506336504',
     projectId: 'campus-lost-found-83347',
-    storageBucket: 'campus-lost-found-83347.firebasestorage.app',
+    storageBucket: 'campus-lost-found-83347.appspot.com',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
@@ -63,7 +65,7 @@ class DefaultFirebaseOptions {
     appId: '1:1023506336504:ios:15e9e0197ce0136dec090d',
     messagingSenderId: '1023506336504',
     projectId: 'campus-lost-found-83347',
-    storageBucket: 'campus-lost-found-83347.firebasestorage.app',
+    storageBucket: 'campus-lost-found-83347.appspot.com',
     iosBundleId: 'com.example.campusLostFound',
   );
 
@@ -72,7 +74,7 @@ class DefaultFirebaseOptions {
     appId: '1:1023506336504:ios:15e9e0197ce0136dec090d',
     messagingSenderId: '1023506336504',
     projectId: 'campus-lost-found-83347',
-    storageBucket: 'campus-lost-found-83347.firebasestorage.app',
+    storageBucket: 'campus-lost-found-83347.appspot.com',
     iosBundleId: 'com.example.campusLostFound',
   );
 
@@ -82,7 +84,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1023506336504',
     projectId: 'campus-lost-found-83347',
     authDomain: 'campus-lost-found-83347.firebaseapp.com',
-    storageBucket: 'campus-lost-found-83347.firebasestorage.app',
+    storageBucket: 'campus-lost-found-83347.appspot.com',
     measurementId: 'G-KYJ25WP4RC',
   );
 }

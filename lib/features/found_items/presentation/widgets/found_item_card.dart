@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:campus_lost_found/core/widgets/status_badge.dart';
 import 'package:campus_lost_found/core/utils/date_time_x.dart';
 import 'package:campus_lost_found/core/constants/categories.dart';
 import 'package:campus_lost_found/features/found_items/domain/found_item.dart';
+import 'package:campus_lost_found/providers/providers.dart';
 
-class FoundItemCard extends StatelessWidget {
+class FoundItemCard extends ConsumerWidget {
   final FoundItem item;
   final VoidCallback? onTap;
 
@@ -15,7 +17,20 @@ class FoundItemCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // If mainPhotoUrl is not available, try to get first photo from subcollection
+    final photosAsync = item.mainPhotoUrl == null || item.mainPhotoUrl!.isEmpty
+        ? ref.watch(itemPhotosProvider(item.id))
+        : null;
+
+    String? photoUrl = item.mainPhotoUrl;
+    if (photoUrl == null || photoUrl.isEmpty) {
+      final photos = photosAsync?.value;
+      if (photos != null && photos.isNotEmpty) {
+        photoUrl = photos.first.assetPath;
+      }
+    }
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -28,11 +43,21 @@ class FoundItemCard extends StatelessWidget {
               height: 180,
               width: double.infinity,
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: (item.mainPhotoUrl != null &&
-                      item.mainPhotoUrl!.isNotEmpty)
+              child: (photoUrl != null && photoUrl.isNotEmpty && photoUrl.startsWith('http'))
                   ? Image.network(
-                      item.mainPhotoUrl!,
+                      photoUrl,
                       fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    (loadingProgress.expectedTotalBytes ?? 1)
+                                : null,
+                          ),
+                        );
+                      },
                       errorBuilder: (_, __, ___) => Center(
                         child: Text(
                           ItemCategories.icons[item.category] ?? '📦',

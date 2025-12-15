@@ -1,15 +1,16 @@
 import 'dart:io';
 
+import 'package:campus_lost_found/core/domain/audit_log.dart';
+import 'package:campus_lost_found/core/utils/date_time_x.dart';
+import 'package:campus_lost_found/core/utils/validators.dart';
+import 'package:campus_lost_found/features/report_found/presentation/widgets/category_picker.dart';
+import 'package:campus_lost_found/features/report_found/presentation/widgets/location_picker.dart';
+import 'package:campus_lost_found/providers/providers.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:campus_lost_found/core/utils/validators.dart';
-import 'package:campus_lost_found/core/utils/date_time_x.dart';
-import 'package:campus_lost_found/core/domain/audit_log.dart';
-import 'package:campus_lost_found/features/report_found/presentation/widgets/category_picker.dart';
-import 'package:campus_lost_found/features/report_found/presentation/widgets/location_picker.dart';
-import 'package:campus_lost_found/providers/providers.dart';
 
 class ReportFoundPage extends ConsumerStatefulWidget {
   const ReportFoundPage({super.key});
@@ -130,10 +131,32 @@ class _ReportFoundPageState extends ConsumerState<ReportFoundPage> {
 
       // Upload photos (min 1, max 3)
       for (final xfile in _selectedPhotos.take(3)) {
-        await photosRepo.uploadFoundItemPhoto(
-          itemId: item.id,
-          file: File(xfile.path),
-        );
+        try {
+          await photosRepo.uploadFoundItemPhoto(
+            itemId: item.id,
+            file: File(xfile.path),
+          );
+        } on FirebaseException catch (e) {
+          debugPrint(
+              '[ReportFoundPage] FirebaseException while uploading photo: ${e.code} ${e.message}');
+          if (!mounted) continue;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Photo upload failed (${e.code}): ${e.message}',
+              ),
+            ),
+          );
+        } catch (e) {
+          debugPrint(
+              '[ReportFoundPage] Unknown error while uploading photo: $e');
+          if (!mounted) continue;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Photo upload failed: $e'),
+            ),
+          );
+        }
       }
 
       auditRepo.addLog(
