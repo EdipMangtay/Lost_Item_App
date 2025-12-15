@@ -87,7 +87,16 @@ class _ReportFoundPageState extends ConsumerState<ReportFoundPage> {
         _selectedLocation != null &&
         _foundDate != null &&
         _foundTime != null) {
-      final user = ref.read(currentUserProvider);
+      final currentUserAsync = ref.read(currentUserProvider);
+      final user = currentUserAsync.value;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You need to be signed in to report an item'),
+          ),
+        );
+        return;
+      }
 
       final foundDateTime = DateTime(
         _foundDate!.year,
@@ -116,7 +125,7 @@ class _ReportFoundPageState extends ConsumerState<ReportFoundPage> {
         description: _descriptionController.text.trim(),
         foundLocation: _selectedLocation!,
         foundAt: foundDateTime,
-        createdByOfficerId: user.id,
+        createdByOfficerId: user.uid,
       );
 
       // Upload photos (min 1, max 3)
@@ -128,7 +137,7 @@ class _ReportFoundPageState extends ConsumerState<ReportFoundPage> {
       }
 
       auditRepo.addLog(
-        actorId: user.id,
+        actorId: user.uid,
         actionType: ActionType.itemCreated,
         entityType: EntityType.foundItem,
         entityId: item.id,

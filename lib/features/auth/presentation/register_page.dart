@@ -1,8 +1,7 @@
+import 'package:campus_lost_found/providers/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:campus_lost_found/providers/providers.dart';
-import 'package:campus_lost_found/core/domain/app_user.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -16,6 +15,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _studentNoController = TextEditingController();
   bool _isLoading = false;
 
   @override
@@ -23,6 +23,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _studentNoController.dispose();
     super.dispose();
   }
 
@@ -34,25 +35,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     final auth = ref.read(firebaseAuthServiceProvider);
 
     try {
-      await auth.registerOfficer(
+      await auth.registerWithEmail(
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
+        studentNo: _studentNoController.text.trim().isEmpty
+            ? null
+            : _studentNoController.text.trim(),
       );
-
-      final appUser =
-          await auth.authStateChanges().firstWhere((user) => user != null);
-
-      if (appUser != null) {
-        ref.read(currentUserProvider.notifier).setUser(
-              AppUser(
-                id: appUser.id,
-                name: appUser.name,
-                role: appUser.role,
-                studentNumber: appUser.studentNumber,
-              ),
-            );
-      }
 
       if (mounted) {
         context.go('/');
@@ -96,7 +86,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Register as an officer to manage lost & found items',
+                        'Create your account to report and claim items',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
@@ -113,6 +103,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           }
                           return null;
                         },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _studentNoController,
+                        decoration: const InputDecoration(
+                          labelText: 'Student Number (Optional)',
+                          prefixIcon: Icon(Icons.badge_outlined),
+                        ),
                       ),
                       const SizedBox(height: 16),
                       TextFormField(

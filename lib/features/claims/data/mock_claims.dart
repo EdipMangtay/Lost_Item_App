@@ -7,6 +7,7 @@ class MockClaims {
       ClaimRequest(
         id: 'CLM-1',
         itemId: 'LF-2025-000002',
+        requesterUid: 'user-mock-1',
         requesterName: 'John Doe',
         requesterStudentNo: 'STU-2023-001',
         notes: 'The backpack has my name tag inside. It\'s a blue Nike backpack with a laptop compartment.',

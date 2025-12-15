@@ -1,89 +1,81 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:campus_lost_found/core/data/user_repository.dart';
 import 'package:campus_lost_found/core/domain/app_user.dart';
 
 /// Firebase Auth + Firestore backend for email/password authentication.
 class FirebaseAuthService {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  final UserRepository _userRepository;
 
   FirebaseAuthService({
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
+    UserRepository? userRepository,
   })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+        _firestore = firestore ?? FirebaseFirestore.instance,
+        _userRepository = userRepository ??
+            UserRepository(
+              auth: auth,
+              firestore: firestore,
+            );
 
-  /// Register an OFFICER with email & password and create users/{uid} doc.
+  /// Register a user with email & password and ensure users/{uid} doc exists.
   ///
-  /// TODO(UI): Call this from your Register button.
-  Future<UserCredential> registerOfficer({
+  /// Default role is STUDENT; officers/admins can be promoted via console.
+  Future<UserCredential> registerWithEmail({
     required String name,
     required String email,
     required String password,
+    String? studentNo,
   }) async {
     final cred = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
 
-    final uid = cred.user!.uid;
+    final user = cred.user;
+    if (user == null) {
+      throw StateError('Failed to create user');
+    }
 
-    await _firestore.collection('users').doc(uid).set({
-      'name': name,
-      'email': email,
-      'role': 'OFFICER',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    await _userRepository.ensureUserDocExists(
+      user,
+      name: name,
+      studentNo: studentNo,
+    );
 
     return cred;
   }
 
   /// Email/password sign-in.
-  ///
-  /// TODO(UI): Call this from your Login button.
   Future<UserCredential> signInWithEmail({
     required String email,
     required String password,
-  }) {
-    return _auth.signInWithEmailAndPassword(
+  }) async {
+    final cred = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
     );
+
+    final user = cred.user;
+    if (user != null) {
+      // Make sure profile doc exists / is up to date.
+      await _userRepository.ensureUserDocExists(user);
+    }
+
+    return cred;
   }
 
   Future<void> signOut() => _auth.signOut();
 
-  /// Map Firebase auth state to AppUser domain model.
+  /// Stream of [AppUser] for router & Settings integration.
+  ///
+  /// This delegates to [UserRepository.currentUserStream] so it stays in sync
+  /// with the Firestore `users/{uid}` document.
   Stream<AppUser?> authStateChanges() {
-    return _auth.authStateChanges().asyncMap(_mapFirebaseUserToAppUser);
-  }
-
-  Future<AppUser?> _mapFirebaseUserToAppUser(User? user) async {
-    if (user == null) return null;
-
-    final doc = await _firestore.collection('users').doc(user.uid).get();
-    final data = doc.data() ?? <String, dynamic>{};
-
-    final roleString = (data['role'] as String? ?? 'STUDENT').toUpperCase();
-    final UserRole role;
-    switch (roleString) {
-      case 'OFFICER':
-        role = UserRole.officer;
-        break;
-      case 'ADMIN':
-        role = UserRole.admin;
-        break;
-      default:
-        role = UserRole.student;
-    }
-
-    return AppUser(
-      id: user.uid,
-      name: (data['name'] as String?) ?? (user.email ?? 'User'),
-      role: role,
-      studentNumber: data['studentNumber'] as String?,
-    );
+    return _userRepository.currentUserStream();
   }
 }
-
 

@@ -22,6 +22,7 @@ ClaimRequest _$ClaimRequestFromJson(Map<String, dynamic> json) {
 mixin _$ClaimRequest {
   String get id => throw _privateConstructorUsedError;
   String get itemId => throw _privateConstructorUsedError;
+  String get requesterUid => throw _privateConstructorUsedError;
   String get requesterName => throw _privateConstructorUsedError;
   String? get requesterStudentNo => throw _privateConstructorUsedError;
   String get notes => throw _privateConstructorUsedError;
@@ -49,6 +50,7 @@ abstract class $ClaimRequestCopyWith<$Res> {
   $Res call(
       {String id,
       String itemId,
+      String requesterUid,
       String requesterName,
       String? requesterStudentNo,
       String notes,
@@ -75,6 +77,7 @@ class _$ClaimRequestCopyWithImpl<$Res, $Val extends ClaimRequest>
   $Res call({
     Object? id = null,
     Object? itemId = null,
+    Object? requesterUid = null,
     Object? requesterName = null,
     Object? requesterStudentNo = freezed,
     Object? notes = null,
@@ -91,6 +94,10 @@ class _$ClaimRequestCopyWithImpl<$Res, $Val extends ClaimRequest>
       itemId: null == itemId
           ? _value.itemId
           : itemId // ignore: cast_nullable_to_non_nullable
+              as String,
+      requesterUid: null == requesterUid
+          ? _value.requesterUid
+          : requesterUid // ignore: cast_nullable_to_non_nullable
               as String,
       requesterName: null == requesterName
           ? _value.requesterName
@@ -135,6 +142,7 @@ abstract class _$$ClaimRequestImplCopyWith<$Res>
   $Res call(
       {String id,
       String itemId,
+      String requesterUid,
       String requesterName,
       String? requesterStudentNo,
       String notes,
@@ -159,6 +167,7 @@ class __$$ClaimRequestImplCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? itemId = null,
+    Object? requesterUid = null,
     Object? requesterName = null,
     Object? requesterStudentNo = freezed,
     Object? notes = null,
@@ -175,6 +184,10 @@ class __$$ClaimRequestImplCopyWithImpl<$Res>
       itemId: null == itemId
           ? _value.itemId
           : itemId // ignore: cast_nullable_to_non_nullable
+              as String,
+      requesterUid: null == requesterUid
+          ? _value.requesterUid
+          : requesterUid // ignore: cast_nullable_to_non_nullable
               as String,
       requesterName: null == requesterName
           ? _value.requesterName
@@ -214,6 +227,7 @@ class _$ClaimRequestImpl implements _ClaimRequest {
   const _$ClaimRequestImpl(
       {required this.id,
       required this.itemId,
+      required this.requesterUid,
       required this.requesterName,
       this.requesterStudentNo,
       required this.notes,
@@ -229,6 +243,8 @@ class _$ClaimRequestImpl implements _ClaimRequest {
   final String id;
   @override
   final String itemId;
+  @override
+  final String requesterUid;
   @override
   final String requesterName;
   @override
@@ -246,7 +262,7 @@ class _$ClaimRequestImpl implements _ClaimRequest {
 
   @override
   String toString() {
-    return 'ClaimRequest(id: $id, itemId: $itemId, requesterName: $requesterName, requesterStudentNo: $requesterStudentNo, notes: $notes, status: $status, createdAt: $createdAt, decidedAt: $decidedAt, decidedByOfficerId: $decidedByOfficerId)';
+    return 'ClaimRequest(id: $id, itemId: $itemId, requesterUid: $requesterUid, requesterName: $requesterName, requesterStudentNo: $requesterStudentNo, notes: $notes, status: $status, createdAt: $createdAt, decidedAt: $decidedAt, decidedByOfficerId: $decidedByOfficerId)';
   }
 
   @override
@@ -256,6 +272,8 @@ class _$ClaimRequestImpl implements _ClaimRequest {
             other is _$ClaimRequestImpl &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.itemId, itemId) || other.itemId == itemId) &&
+            (identical(other.requesterUid, requesterUid) ||
+                other.requesterUid == requesterUid) &&
             (identical(other.requesterName, requesterName) ||
                 other.requesterName == requesterName) &&
             (identical(other.requesterStudentNo, requesterStudentNo) ||
@@ -276,6 +294,7 @@ class _$ClaimRequestImpl implements _ClaimRequest {
       runtimeType,
       id,
       itemId,
+      requesterUid,
       requesterName,
       requesterStudentNo,
       notes,
@@ -304,6 +323,7 @@ abstract class _ClaimRequest implements ClaimRequest {
   const factory _ClaimRequest(
       {required final String id,
       required final String itemId,
+      required final String requesterUid,
       required final String requesterName,
       final String? requesterStudentNo,
       required final String notes,
@@ -319,6 +339,8 @@ abstract class _ClaimRequest implements ClaimRequest {
   String get id;
   @override
   String get itemId;
+  @override
+  String get requesterUid;
   @override
   String get requesterName;
   @override

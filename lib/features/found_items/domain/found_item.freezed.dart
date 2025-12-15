@@ -31,6 +31,7 @@ mixin _$FoundItem {
   String get qrValue => throw _privateConstructorUsedError;
   String get createdByOfficerId => throw _privateConstructorUsedError;
   DateTime? get deliveredAt => throw _privateConstructorUsedError;
+  String? get mainPhotoUrl => throw _privateConstructorUsedError;
 
   /// Serializes this FoundItem to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -58,7 +59,8 @@ abstract class $FoundItemCopyWith<$Res> {
       List<ItemPhoto> photos,
       String qrValue,
       String createdByOfficerId,
-      DateTime? deliveredAt});
+      DateTime? deliveredAt,
+      String? mainPhotoUrl});
 }
 
 /// @nodoc
@@ -87,6 +89,7 @@ class _$FoundItemCopyWithImpl<$Res, $Val extends FoundItem>
     Object? qrValue = null,
     Object? createdByOfficerId = null,
     Object? deliveredAt = freezed,
+    Object? mainPhotoUrl = freezed,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -133,6 +136,10 @@ class _$FoundItemCopyWithImpl<$Res, $Val extends FoundItem>
           ? _value.deliveredAt
           : deliveredAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      mainPhotoUrl: freezed == mainPhotoUrl
+          ? _value.mainPhotoUrl
+          : mainPhotoUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -156,7 +163,8 @@ abstract class _$$FoundItemImplCopyWith<$Res>
       List<ItemPhoto> photos,
       String qrValue,
       String createdByOfficerId,
-      DateTime? deliveredAt});
+      DateTime? deliveredAt,
+      String? mainPhotoUrl});
 }
 
 /// @nodoc
@@ -183,6 +191,7 @@ class __$$FoundItemImplCopyWithImpl<$Res>
     Object? qrValue = null,
     Object? createdByOfficerId = null,
     Object? deliveredAt = freezed,
+    Object? mainPhotoUrl = freezed,
   }) {
     return _then(_$FoundItemImpl(
       id: null == id
@@ -229,6 +238,10 @@ class __$$FoundItemImplCopyWithImpl<$Res>
           ? _value.deliveredAt
           : deliveredAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      mainPhotoUrl: freezed == mainPhotoUrl
+          ? _value.mainPhotoUrl
+          : mainPhotoUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -247,7 +260,8 @@ class _$FoundItemImpl implements _FoundItem {
       required final List<ItemPhoto> photos,
       required this.qrValue,
       required this.createdByOfficerId,
-      this.deliveredAt})
+      this.deliveredAt,
+      this.mainPhotoUrl})
       : _photos = photos;
 
   factory _$FoundItemImpl.fromJson(Map<String, dynamic> json) =>
@@ -281,10 +295,12 @@ class _$FoundItemImpl implements _FoundItem {
   final String createdByOfficerId;
   @override
   final DateTime? deliveredAt;
+  @override
+  final String? mainPhotoUrl;
 
   @override
   String toString() {
-    return 'FoundItem(id: $id, title: $title, category: $category, description: $description, foundLocation: $foundLocation, foundAt: $foundAt, status: $status, photos: $photos, qrValue: $qrValue, createdByOfficerId: $createdByOfficerId, deliveredAt: $deliveredAt)';
+    return 'FoundItem(id: $id, title: $title, category: $category, description: $description, foundLocation: $foundLocation, foundAt: $foundAt, status: $status, photos: $photos, qrValue: $qrValue, createdByOfficerId: $createdByOfficerId, deliveredAt: $deliveredAt, mainPhotoUrl: $mainPhotoUrl)';
   }
 
   @override
@@ -307,7 +323,9 @@ class _$FoundItemImpl implements _FoundItem {
             (identical(other.createdByOfficerId, createdByOfficerId) ||
                 other.createdByOfficerId == createdByOfficerId) &&
             (identical(other.deliveredAt, deliveredAt) ||
-                other.deliveredAt == deliveredAt));
+                other.deliveredAt == deliveredAt) &&
+            (identical(other.mainPhotoUrl, mainPhotoUrl) ||
+                other.mainPhotoUrl == mainPhotoUrl));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -324,7 +342,8 @@ class _$FoundItemImpl implements _FoundItem {
       const DeepCollectionEquality().hash(_photos),
       qrValue,
       createdByOfficerId,
-      deliveredAt);
+      deliveredAt,
+      mainPhotoUrl);
 
   /// Create a copy of FoundItem
   /// with the given fields replaced by the non-null parameter values.
@@ -354,7 +373,8 @@ abstract class _FoundItem implements FoundItem {
       required final List<ItemPhoto> photos,
       required final String qrValue,
       required final String createdByOfficerId,
-      final DateTime? deliveredAt}) = _$FoundItemImpl;
+      final DateTime? deliveredAt,
+      final String? mainPhotoUrl}) = _$FoundItemImpl;
 
   factory _FoundItem.fromJson(Map<String, dynamic> json) =
       _$FoundItemImpl.fromJson;
@@ -381,6 +401,8 @@ abstract class _FoundItem implements FoundItem {
   String get createdByOfficerId;
   @override
   DateTime? get deliveredAt;
+  @override
+  String? get mainPhotoUrl;
 
   /// Create a copy of FoundItem
   /// with the given fields replaced by the non-null parameter values.

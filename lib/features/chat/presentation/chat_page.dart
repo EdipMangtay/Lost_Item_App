@@ -1,10 +1,9 @@
+import 'package:campus_lost_found/core/domain/app_user.dart';
+import 'package:campus_lost_found/features/chat/domain/chat_message.dart';
+import 'package:campus_lost_found/features/found_items/domain/found_item.dart';
+import 'package:campus_lost_found/providers/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:campus_lost_found/features/chat/domain/chat_message.dart';
-import 'package:campus_lost_found/providers/providers.dart';
-import 'package:campus_lost_found/features/found_items/domain/found_item.dart';
-import 'package:campus_lost_found/features/claims/domain/claim_request.dart';
-import 'package:campus_lost_found/core/domain/app_user.dart';
 
 class ChatPage extends ConsumerStatefulWidget {
   final String itemId;
@@ -31,7 +30,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   Future<void> _sendMessage(
     FoundItem item,
-    ClaimRequest approvedClaim,
     AppUser user,
   ) async {
     final text = _controller.text.trim();
@@ -41,10 +39,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
     await chatRepo.sendMessage(
       itemId: item.id,
-      senderUid: user.id,
+      senderUid: user.uid,
       text: text,
       finderUid: item.createdByOfficerId,
-      claimantUid: approvedClaim.requesterStudentNo ?? user.id,
+      claimantUid: user.uid,
+      itemTitle: item.title,
     );
 
     _controller.clear();
@@ -53,8 +52,8 @@ class _ChatPageState extends ConsumerState<ChatPage> {
   @override
   Widget build(BuildContext context) {
     final items = ref.watch(foundItemsProvider);
-    final claims = ref.watch(claimsProvider);
-    final user = ref.watch(currentUserProvider);
+    final currentUserAsync = ref.watch(currentUserProvider);
+    final user = currentUserAsync.value;
 
     FoundItem? item;
     try {
@@ -70,23 +69,11 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       );
     }
 
-    final approvedClaims = claims
-        .where(
-          (c) =>
-              c.itemId == widget.itemId && c.status == ClaimStatus.approved,
-        )
-        .toList();
-
-    if (approvedClaims.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Chat')),
-        body: const Center(
-          child: Text('Chat is available only after a claim is approved.'),
-        ),
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator.adaptive()),
       );
     }
-
-    final approvedClaim = approvedClaims.first;
 
     final messagesAsync = ref.watch(chatMessagesProvider(widget.itemId));
 
@@ -119,7 +106,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final msg = messages[index];
-                    final isMe = msg.senderUid == user.id;
+                    final isMe = msg.senderUid == user.uid;
                     return _MessageBubble(
                       message: msg,
                       isMe: isMe,
@@ -159,7 +146,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
                   const SizedBox(width: 8),
                   IconButton.filled(
                     onPressed: () =>
-                        _sendMessage(item!, approvedClaim, user),
+                        _sendMessage(item!, user),
                     icon: const Icon(Icons.send_rounded),
                   ),
                 ],

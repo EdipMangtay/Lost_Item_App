@@ -10,6 +10,7 @@ _$ClaimRequestImpl _$$ClaimRequestImplFromJson(Map<String, dynamic> json) =>
     _$ClaimRequestImpl(
       id: json['id'] as String,
       itemId: json['itemId'] as String,
+      requesterUid: json['requesterUid'] as String,
       requesterName: json['requesterName'] as String,
       requesterStudentNo: json['requesterStudentNo'] as String?,
       notes: json['notes'] as String,
@@ -25,6 +26,7 @@ Map<String, dynamic> _$$ClaimRequestImplToJson(_$ClaimRequestImpl instance) =>
     <String, dynamic>{
       'id': instance.id,
       'itemId': instance.itemId,
+      'requesterUid': instance.requesterUid,
       'requesterName': instance.requesterName,
       'requesterStudentNo': instance.requesterStudentNo,
       'notes': instance.notes,

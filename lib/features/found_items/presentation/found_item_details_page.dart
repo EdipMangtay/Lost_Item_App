@@ -81,12 +81,25 @@ class FoundItemDetailsPage extends ConsumerWidget {
                 ElevatedButton(
                   onPressed: () {
                     if (formKey.currentState!.validate()) {
-                      final user = ref.read(currentUserProvider);
-                      final claimsNotifier = ref.read(claimsStateProvider.notifier);
+                      final currentUserAsync = ref.read(currentUserProvider);
+                      final user = currentUserAsync.value;
+                      if (user == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'You need to be signed in to submit a claim'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      final claimsNotifier =
+                          ref.read(claimsStateProvider.notifier);
                       final auditRepo = ref.read(auditLogRepositoryProvider);
 
                       claimsNotifier.addClaim(
                         itemId: item.id,
+                        requesterUid: user.uid,
                         requesterName: nameController.text,
                         requesterStudentNo: studentNoController.text.isEmpty
                             ? null
@@ -95,7 +108,7 @@ class FoundItemDetailsPage extends ConsumerWidget {
                       );
 
                       auditRepo.addLog(
-                        actorId: user.id,
+                        actorId: user.uid,
                         actionType: ActionType.claimSubmitted,
                         entityType: EntityType.claimRequest,
                         entityId: item.id,
@@ -135,8 +148,19 @@ class FoundItemDetailsPage extends ConsumerWidget {
           ),
           ElevatedButton(
             onPressed: () {
-              final user = ref.read(currentUserProvider);
-              final itemsNotifier = ref.read(foundItemsStateProvider.notifier);
+              final currentUserAsync = ref.read(currentUserProvider);
+              final user = currentUserAsync.value;
+              if (user == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('You need to be signed in to mark delivery'),
+                  ),
+                );
+                return;
+              }
+
+              final itemsNotifier =
+                  ref.read(foundItemsStateProvider.notifier);
               final auditRepo = ref.read(auditLogRepositoryProvider);
 
               itemsNotifier.updateItemStatus(
@@ -146,7 +170,7 @@ class FoundItemDetailsPage extends ConsumerWidget {
               );
 
               auditRepo.addLog(
-                actorId: user.id,
+                actorId: user.uid,
                 actionType: ActionType.itemDelivered,
                 entityType: EntityType.foundItem,
                 entityId: item.id,
@@ -176,7 +200,8 @@ class FoundItemDetailsPage extends ConsumerWidget {
     } catch (e) {
       item = null;
     }
-    final user = ref.watch(currentUserProvider);
+    final currentUserAsync = ref.watch(currentUserProvider);
+    final user = currentUserAsync.value;
     final allClaims = ref.watch(claimsProvider);
     final claims = allClaims.where((c) => c.itemId == itemId).toList();
 
@@ -190,21 +215,24 @@ class FoundItemDetailsPage extends ConsumerWidget {
       );
     }
 
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator.adaptive()),
+      );
+    }
+
     final canClaim = item.status == ItemStatus.inStorage &&
         user.role == UserRole.student;
     final canApprove = user.role == UserRole.officer || user.role == UserRole.admin;
-    final hasPendingClaims = claims.any((c) => c.status == ClaimStatus.pending);
-    final hasApprovedClaims =
-        claims.any((c) => c.status == ClaimStatus.approved);
+    final hasPendingClaims =
+        claims.any((c) => c.status == ClaimStatus.pending);
     final canMarkDelivered = item.status == ItemStatus.pendingClaim &&
         canApprove &&
         claims.any((c) => c.status == ClaimStatus.approved);
-    final canOpenChat = hasApprovedClaims &&
-        (user.role == UserRole.officer ||
-            user.role == UserRole.admin ||
-            claims
-                .where((c) => c.status == ClaimStatus.approved)
-                .any((c) => c.requesterName == user.name));
+
+    // Allow messaging for any signed-in user on the detail page.
+    final canMessage =
+        item.status != ItemStatus.delivered;
 
     return Scaffold(
       body: CustomScrollView(
@@ -326,7 +354,7 @@ class FoundItemDetailsPage extends ConsumerWidget {
                             label: const Text('Claim This Item'),
                           ),
                         ),
-                      if (canOpenChat)
+                      if (canMessage)
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(

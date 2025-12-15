@@ -23,20 +23,28 @@ class FoundItemCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image placeholder
+            // Cover image (or category icon fallback)
             Container(
               height: 180,
               width: double.infinity,
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: item.photos.isNotEmpty
-                  ? Center(
+              child: (item.mainPhotoUrl != null &&
+                      item.mainPhotoUrl!.isNotEmpty)
+                  ? Image.network(
+                      item.mainPhotoUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text(
+                          ItemCategories.icons[item.category] ?? '📦',
+                          style: const TextStyle(fontSize: 64),
+                        ),
+                      ),
+                    )
+                  : Center(
                       child: Text(
                         ItemCategories.icons[item.category] ?? '📦',
                         style: const TextStyle(fontSize: 64),
                       ),
-                    )
-                  : const Center(
-                      child: Icon(Icons.image, size: 64),
                     ),
             ),
             Padding(

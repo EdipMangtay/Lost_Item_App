@@ -1,18 +1,18 @@
 import 'dart:async';
-
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:campus_lost_found/core/data/user_repository.dart';
 import 'package:campus_lost_found/core/data/audit_log_repository.dart';
-import 'package:campus_lost_found/features/found_items/data/found_items_repository.dart';
-import 'package:campus_lost_found/features/claims/data/claims_repository.dart';
-import 'package:campus_lost_found/features/found_items/domain/found_item.dart';
-import 'package:campus_lost_found/features/claims/domain/claim_request.dart';
+import 'package:campus_lost_found/core/data/user_repository.dart';
 import 'package:campus_lost_found/core/domain/app_user.dart';
 import 'package:campus_lost_found/core/domain/item_photo.dart';
-import 'package:campus_lost_found/features/found_items/data/item_photos_repository.dart';
-import 'package:campus_lost_found/features/chat/data/chat_repository.dart';
-import 'package:campus_lost_found/features/chat/domain/chat_message.dart';
 import 'package:campus_lost_found/features/auth/data/firebase_auth_service.dart';
+import 'package:campus_lost_found/features/chat/data/chat_repository.dart';
+import 'package:campus_lost_found/features/chat/domain/chat.dart';
+import 'package:campus_lost_found/features/chat/domain/chat_message.dart';
+import 'package:campus_lost_found/features/claims/data/claims_repository.dart';
+import 'package:campus_lost_found/features/claims/domain/claim_request.dart';
+import 'package:campus_lost_found/features/found_items/data/found_items_repository.dart';
+import 'package:campus_lost_found/features/found_items/data/item_photos_repository.dart';
+import 'package:campus_lost_found/features/found_items/domain/found_item.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // Repositories (singletons)
 final userRepositoryProvider = Provider<UserRepository>((ref) {
@@ -37,7 +37,9 @@ final itemPhotosRepositoryProvider = Provider<ItemPhotosRepository>((ref) {
 
 /// Firebase Auth service provider to access auth backend from UI.
 final firebaseAuthServiceProvider = Provider<FirebaseAuthService>((ref) {
-  return FirebaseAuthService();
+  return FirebaseAuthService(
+    userRepository: ref.read(userRepositoryProvider),
+  );
 });
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
@@ -45,8 +47,12 @@ final chatRepositoryProvider = Provider<ChatRepository>((ref) {
 });
 
 // State providers for reactivity
-final currentUserProvider = StateNotifierProvider<UserNotifier, AppUser>((ref) {
-  return UserNotifier(ref.read(userRepositoryProvider));
+
+/// Current `AppUser` backed by Firestore users/{uid}, or `null` when signed out.
+final currentUserProvider =
+    StreamProvider.autoDispose<AppUser?>((ref) async* {
+  final authService = ref.read(firebaseAuthServiceProvider);
+  yield* authService.authStateChanges();
 });
 
 final foundItemsStateProvider =
@@ -83,27 +89,19 @@ final itemPhotosProvider =
 });
 
 final chatMessagesProvider =
-    StreamProvider.family<List<ChatMessage>, String>((ref, itemId) {
+    StreamProvider.family<List<ChatMessage>, String>((ref, chatId) {
   final repo = ref.read(chatRepositoryProvider);
-  return repo.watchMessages(itemId);
+  return repo.watchMessages(chatId);
+});
+
+/// Stream of chats (conversations) for a given user uid.
+final userChatsProvider =
+    StreamProvider.family<List<Chat>, String>((ref, uid) {
+  final repo = ref.read(chatRepositoryProvider);
+  return repo.userChatsStream(uid);
 });
 
 // Notifiers
-class UserNotifier extends StateNotifier<AppUser> {
-  final UserRepository _repository;
-
-  UserNotifier(this._repository) : super(_repository.getCurrentUser());
-
-  void setUser(AppUser user) {
-    _repository.setCurrentUser(user);
-    state = _repository.getCurrentUser();
-  }
-
-  void updateRole(UserRole role) {
-    _repository.updateUserRole(role);
-    state = _repository.getCurrentUser();
-  }
-}
 
 class FoundItemsNotifier extends StateNotifier<List<FoundItem>> {
   final FoundItemsRepository _repository;
@@ -149,6 +147,7 @@ class FoundItemsNotifier extends StateNotifier<List<FoundItem>> {
     return _repository.updateItemStatus(id, status, deliveredAt: deliveredAt);
   }
 
+  /// Utility to clear all found items (for demo reset / debugging).
   Future<void> reset() async {
     await _repository.reset();
   }
@@ -157,39 +156,43 @@ class FoundItemsNotifier extends StateNotifier<List<FoundItem>> {
 class ClaimsNotifier extends StateNotifier<List<ClaimRequest>> {
   final ClaimsRepository _repository;
 
-  ClaimsNotifier(this._repository) : super(_repository.getAllClaims()) {
-    _refresh();
+  StreamSubscription<List<ClaimRequest>>? _subscription;
+
+  ClaimsNotifier(this._repository) : super(const []) {
+    _subscription = _repository.watchAllClaims().listen((claims) {
+      state = claims;
+    });
   }
 
-  void _refresh() {
-    state = _repository.getAllClaims();
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 
   void addClaim({
     required String itemId,
+    required String requesterUid,
     required String requesterName,
     String? requesterStudentNo,
     required String notes,
   }) {
     _repository.addClaim(
       itemId: itemId,
+      requesterUid: requesterUid,
       requesterName: requesterName,
       requesterStudentNo: requesterStudentNo,
       notes: notes,
     );
-    _refresh();
   }
 
   void updateClaimStatus(
       String id, ClaimStatus status, String decidedByOfficerId) {
     _repository.updateClaimStatus(id, status, decidedByOfficerId);
-    _refresh();
   }
 
   void reset() {
-    _repository.reset();
-    _refresh();
+    // No-op for Firestore-backed claims; keep for API compatibility.
   }
 }
-
 

@@ -1,8 +1,7 @@
+import 'package:campus_lost_found/providers/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:campus_lost_found/providers/providers.dart';
-import 'package:campus_lost_found/core/domain/app_user.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -36,22 +35,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-
-      // Ensure profile exists and map to AppUser
-      final appUser =
-          await auth.authStateChanges().firstWhere((user) => user != null);
-
-      if (appUser != null) {
-        // Update local user state for rest of app
-        ref.read(currentUserProvider.notifier).setUser(
-              AppUser(
-                id: appUser.id,
-                name: appUser.name,
-                role: appUser.role,
-                studentNumber: appUser.studentNumber,
-              ),
-            );
-      }
 
       if (mounted) {
         context.go('/');

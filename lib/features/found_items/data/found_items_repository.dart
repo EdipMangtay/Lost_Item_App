@@ -54,6 +54,7 @@ class FoundItemsRepository {
               IdGenerator.generateQrValue(doc.id),
           createdByOfficerId: data['createdByOfficerId'] as String? ?? '',
           deliveredAt: deliveredAt,
+          mainPhotoUrl: data['coverPhotoUrl'] as String?,
         );
       }).toList();
     });
@@ -97,6 +98,7 @@ class FoundItemsRepository {
           data['qrValue'] as String? ?? IdGenerator.generateQrValue(doc.id),
       createdByOfficerId: data['createdByOfficerId'] as String? ?? '',
       deliveredAt: deliveredAt,
+      mainPhotoUrl: data['coverPhotoUrl'] as String?,
     );
   }
 
@@ -138,6 +140,7 @@ class FoundItemsRepository {
       photos: const [],
       qrValue: qrValue,
       createdByOfficerId: createdByOfficerId,
+      mainPhotoUrl: null,
     );
   }
 

@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:campus_lost_found/features/chat/presentation/messages_page.dart';
+import 'package:campus_lost_found/features/claims/presentation/claims_page.dart';
 import 'package:campus_lost_found/features/found_items/presentation/found_items_page.dart';
 import 'package:campus_lost_found/features/report_found/presentation/report_found_page.dart';
-import 'package:campus_lost_found/features/claims/presentation/claims_page.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -16,6 +17,7 @@ class _HomePageState extends State<HomePage> {
 
   final List<Widget> _pages = [
     const FoundItemsPage(),
+    const MessagesPage(),
     const ReportFoundPage(),
     const ClaimsPage(),
   ];
@@ -39,6 +41,11 @@ class _HomePageState extends State<HomePage> {
             icon: Icon(Icons.search_outlined),
             selectedIcon: Icon(Icons.search),
             label: 'Found Items',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.chat_bubble_outline),
+            selectedIcon: Icon(Icons.chat_bubble),
+            label: 'Messages',
           ),
           NavigationDestination(
             icon: Icon(Icons.add_circle_outline),

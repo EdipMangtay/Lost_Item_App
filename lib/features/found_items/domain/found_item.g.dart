@@ -23,6 +23,7 @@ _$FoundItemImpl _$$FoundItemImplFromJson(Map<String, dynamic> json) =>
       deliveredAt: json['deliveredAt'] == null
           ? null
           : DateTime.parse(json['deliveredAt'] as String),
+      mainPhotoUrl: json['mainPhotoUrl'] as String?,
     );
 
 Map<String, dynamic> _$$FoundItemImplToJson(_$FoundItemImpl instance) =>
@@ -38,6 +39,7 @@ Map<String, dynamic> _$$FoundItemImplToJson(_$FoundItemImpl instance) =>
       'qrValue': instance.qrValue,
       'createdByOfficerId': instance.createdByOfficerId,
       'deliveredAt': instance.deliveredAt?.toIso8601String(),
+      'mainPhotoUrl': instance.mainPhotoUrl,
     };
 
 const _$ItemStatusEnumMap = {

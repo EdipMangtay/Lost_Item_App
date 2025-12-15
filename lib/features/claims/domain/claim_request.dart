@@ -14,6 +14,7 @@ class ClaimRequest with _$ClaimRequest {
   const factory ClaimRequest({
     required String id,
     required String itemId,
+    required String requesterUid,
     required String requesterName,
     String? requesterStudentNo,
     required String notes,

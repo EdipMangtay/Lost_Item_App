@@ -24,6 +24,7 @@ class FoundItem with _$FoundItem {
     required String qrValue,
     required String createdByOfficerId,
     DateTime? deliveredAt,
+    String? mainPhotoUrl,
   }) = _FoundItem;
 
   factory FoundItem.fromJson(Map<String, dynamic> json) => _$FoundItemFromJson(json);
