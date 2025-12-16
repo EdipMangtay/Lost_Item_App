@@ -120,79 +120,151 @@ class _ReportFoundPageState extends ConsumerState<ReportFoundPage> {
         return;
       }
 
-      final item = await itemsNotifier.addItem(
-        title: _titleController.text.trim(),
-        category: _selectedCategory!,
-        description: _descriptionController.text.trim(),
-        foundLocation: _selectedLocation!,
-        foundAt: foundDateTime,
-        createdByOfficerId: user.uid,
-      );
+      // Show polished upload progress dialog
+      double progress = 0.0;
+      String statusText = 'Preparing your report...';
+      StateSetter? dialogSetState;
 
-      // Upload photos (min 1, max 3)
-      for (final xfile in _selectedPhotos.take(3)) {
-        try {
-          await photosRepo.uploadFoundItemPhoto(
-            itemId: item.id,
-            file: File(xfile.path),
-          );
-        } on FirebaseException catch (e) {
-          debugPrint(
-              '[ReportFoundPage] FirebaseException while uploading photo: ${e.code} ${e.message}');
-          if (!mounted) continue;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Photo upload failed (${e.code}): ${e.message}',
-              ),
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        barrierColor: Colors.black54,
+        builder: (dialogContext) {
+          return WillPopScope(
+            onWillPop: () async => false,
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                dialogSetState = setState;
+                return _ReportUploadProgressDialog(
+                  progress: progress,
+                  statusText: statusText,
+                );
+              },
             ),
           );
-        } catch (e) {
-          debugPrint(
-              '[ReportFoundPage] Unknown error while uploading photo: $e');
-          if (!mounted) continue;
+        },
+      );
+
+      void updateDialog(double value, String text) {
+        if (dialogSetState == null) return;
+        dialogSetState!(() {
+          progress = value.clamp(0.0, 1.0);
+          statusText = text;
+        });
+      }
+
+      try {
+        final totalSteps = 1 + _selectedPhotos.take(3).length;
+        int completedSteps = 0;
+
+        updateDialog(
+          completedSteps / totalSteps,
+          'Saving item details securely...',
+        );
+
+        final item = await itemsNotifier.addItem(
+          title: _titleController.text.trim(),
+          category: _selectedCategory!,
+          description: _descriptionController.text.trim(),
+          foundLocation: _selectedLocation!,
+          foundAt: foundDateTime,
+          createdByOfficerId: user.uid,
+        );
+
+        completedSteps++;
+        updateDialog(
+          completedSteps / totalSteps,
+          'Uploading photos (${completedSteps}/$totalSteps)...',
+        );
+
+        // Upload photos (min 1, max 3)
+        for (final xfile in _selectedPhotos.take(3)) {
+          try {
+            await photosRepo.uploadFoundItemPhoto(
+              itemId: item.id,
+              file: File(xfile.path),
+            );
+          } on FirebaseException catch (e) {
+            debugPrint(
+              '[ReportFoundPage] FirebaseException while uploading photo: ${e.code} ${e.message}',
+            );
+            if (!mounted) continue;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Photo upload failed (${e.code}): ${e.message}',
+                ),
+              ),
+            );
+          } catch (e) {
+            debugPrint(
+                '[ReportFoundPage] Unknown error while uploading photo: $e');
+            if (!mounted) continue;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Photo upload failed: $e'),
+              ),
+            );
+          } finally {
+            completedSteps++;
+            updateDialog(
+              completedSteps / totalSteps,
+              'Uploading photos (${completedSteps}/$totalSteps)...',
+            );
+          }
+        }
+
+        auditRepo.addLog(
+          actorId: user.uid,
+          actionType: ActionType.itemCreated,
+          entityType: EntityType.foundItem,
+          entityId: item.id,
+          details: {
+            'title': item.title,
+            'category': item.category,
+          },
+        );
+
+        updateDialog(1.0, 'All set! Your found item has been published.');
+
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop(); // close dialog
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Item "${item.title}" reported successfully!'),
+            action: SnackBarAction(
+              label: 'View',
+              onPressed: () {
+                context.push('/item/${item.id}');
+              },
+            ),
+          ),
+        );
+
+        // Reset form
+        _formKey.currentState!.reset();
+        _titleController.clear();
+        _descriptionController.clear();
+        setState(() {
+          _selectedCategory = null;
+          _selectedLocation = null;
+          _foundDate = null;
+          _foundTime = null;
+          _selectedPhotos.clear();
+        });
+      } catch (e) {
+        debugPrint('[ReportFoundPage] Error while reporting item: $e');
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pop(); // close dialog
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Photo upload failed: $e'),
+              content: Text('Failed to report item: $e'),
             ),
           );
         }
       }
-
-      auditRepo.addLog(
-        actorId: user.uid,
-        actionType: ActionType.itemCreated,
-        entityType: EntityType.foundItem,
-        entityId: item.id,
-        details: {
-          'title': item.title,
-          'category': item.category,
-        },
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Item "${item.title}" reported successfully!'),
-          action: SnackBarAction(
-            label: 'View',
-            onPressed: () {
-              context.push('/item/${item.id}');
-            },
-          ),
-        ),
-      );
-
-      // Reset form
-      _formKey.currentState!.reset();
-      _titleController.clear();
-      _descriptionController.clear();
-      setState(() {
-        _selectedCategory = null;
-        _selectedLocation = null;
-        _foundDate = null;
-        _foundTime = null;
-        _selectedPhotos.clear();
-      });
     }
   }
 
@@ -429,4 +501,115 @@ class _PhotoPickerGrid extends StatelessWidget {
     );
   }
 }
+
+class _ReportUploadProgressDialog extends StatelessWidget {
+  final double progress;
+  final String statusText;
+
+  const _ReportUploadProgressDialog({
+    required this.progress,
+    required this.statusText,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final percent = (progress * 100).clamp(0, 100).toInt();
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              theme.colorScheme.primaryContainer,
+              theme.colorScheme.tertiaryContainer,
+            ],
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              'Publishing Your Found Item',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 120,
+              width: 120,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    value: progress == 0 ? null : progress,
+                    strokeWidth: 8,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      theme.colorScheme.primary,
+                    ),
+                    backgroundColor:
+                        theme.colorScheme.onPrimaryContainer.withOpacity(0.1),
+                  ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '$percent%',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Uploading',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer
+                              .withOpacity(0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              statusText,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer.withOpacity(0.95),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Campus Lost & Found is securely processing your report so we can help reunite this item with its owner.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer.withOpacity(0.8),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Please keep the app open and do not close this screen until the upload is complete.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
