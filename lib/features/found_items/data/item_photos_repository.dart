@@ -17,14 +17,14 @@ class ItemPhotosRepository {
     FirebaseFirestore? firestore,
     FirebaseStorage? storage,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        // Use explicit bucket URL from Firebase Console to fix object-not-found error
-        // Bucket URL: gs://campus-lost-found-83347.firebasestorage.app
-        // Only override if explicitly provided for testing
-        _storage = storage ?? 
-            FirebaseStorage.instanceFor(
-              app: Firebase.app(),
-              bucket: 'campus-lost-found-83347.firebasestorage.app',
-            );
+        // CRITICAL: Use explicit custom bucket URL
+        // The actual Firebase Storage bucket is: gs://campus-lost-found-83347.firebasestorage.app
+        // NOT the default from firebase_options.dart (appspot.com)
+        // This prevents "object-not-found" and "yanıt ayrıştırılamıyor" errors
+        _storage = storage ?? FirebaseStorage.instanceFor(
+          app: Firebase.app(),
+          bucket: 'campus-lost-found-83347.firebasestorage.app',
+        );
 
   /// Real-time stream of photos for an item from subcollection:
   /// found_items/{itemId}/photos
@@ -144,34 +144,142 @@ class ItemPhotosRepository {
       );
       
       debugPrint(
-          '[ItemPhotosRepository] Upload completed. bytesTransferred=${taskSnapshot.bytesTransferred}, totalBytes=${taskSnapshot.totalBytes}');
+          '[ItemPhotosRepository] Upload completed. bytesTransferred=${taskSnapshot.bytesTransferred}, totalBytes=${taskSnapshot.totalBytes}, state=${taskSnapshot.state}');
+
+      // Check upload state
+      if (taskSnapshot.state != TaskState.success) {
+        throw Exception(
+          'Upload failed with state: ${taskSnapshot.state}. '
+          'Please check your internet connection and try again.',
+        );
+      }
 
       if (taskSnapshot.bytesTransferred == 0 || taskSnapshot.totalBytes == 0) {
         throw Exception('Upload completed but no bytes were transferred');
       }
-
-      // Get download URL with timeout and better error handling
-      String url;
-      try {
-        url = await storageRef.getDownloadURL().timeout(
-          const Duration(seconds: 30),
-          onTimeout: () {
-            throw Exception('Failed to get download URL: timeout');
-          },
+      
+      // Verify bytes match
+      if (taskSnapshot.bytesTransferred != taskSnapshot.totalBytes) {
+        debugPrint(
+          '[ItemPhotosRepository] Warning: Upload incomplete. '
+          'Transferred: ${taskSnapshot.bytesTransferred}/${taskSnapshot.totalBytes}',
         );
-        debugPrint('[ItemPhotosRepository] Download URL obtained: $url');
-        
-        // Validate URL
-        if (url.isEmpty || (!url.startsWith('http://') && !url.startsWith('https://'))) {
-          throw Exception('Invalid download URL format: $url');
-        }
-      } catch (e) {
-        debugPrint('[ItemPhotosRepository] Error getting download URL: $e');
-        rethrow;
+        // Still continue - sometimes Firebase reports this but upload is successful
       }
 
+      // CRITICAL: Wait a moment after upload completes before getting URL
+      // Firebase Storage sometimes needs a brief moment to process the upload
+      // This prevents "yanıt ayrıştırılamıyor" (response parsing) errors
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      // Get download URL with robust retry mechanism
+      String url = '';
+      int retryCount = 0;
+      const maxRetries = 5; // Increased retries for better reliability
+      Exception? lastException;
+      
+      while (retryCount < maxRetries) {
+        try {
+          // Wait progressively longer between retries (exponential backoff)
+          if (retryCount > 0) {
+            await Future.delayed(Duration(seconds: retryCount * 2));
+          }
+          
+          debugPrint('[ItemPhotosRepository] Attempting to get download URL (attempt ${retryCount + 1}/$maxRetries)...');
+          
+          url = await storageRef.getDownloadURL().timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw Exception('Failed to get download URL: timeout after 30 seconds');
+            },
+          );
+          
+          debugPrint('[ItemPhotosRepository] Download URL obtained: $url');
+          
+          // Validate URL format
+          if (url.isEmpty) {
+            throw Exception('Download URL is empty');
+          }
+          
+          if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            throw Exception('Invalid download URL format: $url');
+          }
+          
+          // Success - break out of retry loop
+          lastException = null;
+          break;
+        } on FirebaseException catch (e) {
+          retryCount++;
+          lastException = e;
+          debugPrint(
+            '[ItemPhotosRepository] FirebaseException getting download URL (attempt $retryCount/$maxRetries): ${e.code} - ${e.message}',
+          );
+          
+          // If it's a permanent error, don't retry
+          if (e.code == 'object-not-found' || 
+              e.code == 'unauthorized' || 
+              e.code == 'permission-denied') {
+            debugPrint('[ItemPhotosRepository] Permanent error detected, not retrying');
+            rethrow;
+          }
+          
+          if (retryCount >= maxRetries) {
+            debugPrint('[ItemPhotosRepository] All retry attempts failed for getDownloadURL');
+            // Upload was successful, but we can't get the URL
+            // Construct a URL manually as fallback
+            final bucket = _storage.bucket;
+            final path = storageRef.fullPath;
+            url = 'https://firebasestorage.googleapis.com/v0/b/$bucket/o/${Uri.encodeComponent(path)}?alt=media';
+            debugPrint('[ItemPhotosRepository] Using constructed URL as fallback: $url');
+            break;
+          }
+          
+          debugPrint('[ItemPhotosRepository] Retrying in ${retryCount * 2} seconds...');
+        } catch (e) {
+          retryCount++;
+          lastException = e is Exception ? e : Exception(e.toString());
+          debugPrint(
+            '[ItemPhotosRepository] Error getting download URL (attempt $retryCount/$maxRetries): $e',
+          );
+          
+          if (retryCount >= maxRetries) {
+            debugPrint('[ItemPhotosRepository] All retry attempts failed for getDownloadURL');
+            // Upload was successful, but we can't get the URL
+            // Construct a URL manually as fallback
+            try {
+              final bucket = _storage.bucket;
+              final path = storageRef.fullPath;
+              url = 'https://firebasestorage.googleapis.com/v0/b/$bucket/o/${Uri.encodeComponent(path)}?alt=media';
+              debugPrint('[ItemPhotosRepository] Using constructed URL as fallback: $url');
+              break;
+            } catch (fallbackError) {
+              debugPrint('[ItemPhotosRepository] Fallback URL construction also failed: $fallbackError');
+              if (lastException is FirebaseException) {
+                rethrow;
+              }
+              throw Exception('Failed to get download URL after $maxRetries attempts: $e');
+            }
+          }
+          
+          debugPrint('[ItemPhotosRepository] Retrying in ${retryCount * 2} seconds...');
+        }
+      }
+
+      if (url.isEmpty && lastException != null) {
+        // Last resort: try to construct URL manually
+        try {
+          final bucket = _storage.bucket;
+          final path = storageRef.fullPath;
+          url = 'https://firebasestorage.googleapis.com/v0/b/$bucket/o/${Uri.encodeComponent(path)}?alt=media';
+          debugPrint('[ItemPhotosRepository] Using constructed URL as last resort: $url');
+        } catch (e) {
+          debugPrint('[ItemPhotosRepository] Could not construct fallback URL: $e');
+          throw lastException;
+        }
+      }
+      
       if (url.isEmpty) {
-        throw Exception('Download URL is empty after upload');
+        throw Exception('Download URL is empty after all retry attempts and fallback');
       }
 
       // Create Firestore document
@@ -221,19 +329,25 @@ class ItemPhotosRepository {
           '[ItemPhotosRepository] Storage bucket used: ${_storage.bucket}');
       debugPrint(
           '[ItemPhotosRepository] Current user: ${FirebaseAuth.instance.currentUser?.uid ?? "null"}');
-
-      // Provide more specific error messages
-      String userMessage = 'Photo upload failed';
-      if (e.code == 'unauthenticated' || e.code == 'unauthorized') {
-        userMessage = 'Authentication required. Please sign in again.';
-      } else if (e.code == 'unknown') {
-        userMessage =
-            'Upload failed. Please check your internet connection and try again.';
-      } else if (e.code == 'canceled') {
-        userMessage = 'Upload was canceled.';
+      
+      // Provide user-friendly error messages
+      String userMessage = e.message ?? 'Unknown error';
+      if (e.code == 'unknown' && e.message?.contains('yanıt ayrıştırılamıyor') == true) {
+        userMessage = 'Network error: Could not connect to Firebase Storage. Please check your internet connection and try again.';
+      } else if (e.code == 'unauthenticated') {
+        userMessage = 'Authentication error: Please sign in again.';
+      } else if (e.code == 'permission-denied') {
+        userMessage = 'Permission denied: You do not have permission to upload photos.';
+      } else if (e.code == 'object-not-found') {
+        userMessage = 'Storage error: The upload location was not found.';
       }
-
-      rethrow;
+      
+      // Create a new exception with user-friendly message
+      throw FirebaseException(
+        plugin: e.plugin,
+        code: e.code,
+        message: userMessage,
+      );
     } catch (e, st) {
       debugPrint(
           '[ItemPhotosRepository] Unknown error while uploading photo: $e');

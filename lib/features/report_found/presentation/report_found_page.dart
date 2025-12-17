@@ -178,6 +178,7 @@ class _ReportFoundPageState extends ConsumerState<ReportFoundPage> {
         );
 
         // Upload photos (min 1, max 3)
+        int failedUploads = 0;
         for (final xfile in _selectedPhotos.take(3)) {
           try {
             await photosRepo.uploadFoundItemPhoto(
@@ -185,24 +186,29 @@ class _ReportFoundPageState extends ConsumerState<ReportFoundPage> {
               file: File(xfile.path),
             );
           } on FirebaseException catch (e) {
+            failedUploads++;
             debugPrint(
               '[ReportFoundPage] FirebaseException while uploading photo: ${e.code} ${e.message}',
             );
             if (!mounted) continue;
+            // Error message already contains user-friendly text from repository
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                  'Photo upload failed (${e.code}): ${e.message}',
-                ),
+                content: Text(e.message ?? 'Photo upload failed'),
+                duration: const Duration(seconds: 4),
+                backgroundColor: Theme.of(context).colorScheme.error,
               ),
             );
           } catch (e) {
+            failedUploads++;
             debugPrint(
                 '[ReportFoundPage] Unknown error while uploading photo: $e');
             if (!mounted) continue;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Photo upload failed: $e'),
+                content: Text('Photo upload failed: ${e.toString()}'),
+                duration: const Duration(seconds: 4),
+                backgroundColor: Theme.of(context).colorScheme.error,
               ),
             );
           } finally {
@@ -212,6 +218,18 @@ class _ReportFoundPageState extends ConsumerState<ReportFoundPage> {
               'Uploading photos (${completedSteps}/$totalSteps)...',
             );
           }
+        }
+        
+        // Warn if some photos failed but continue anyway
+        if (failedUploads > 0 && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '$failedUploads photo(s) failed to upload, but the item was created successfully.',
+              ),
+              duration: const Duration(seconds: 5),
+            ),
+          );
         }
 
         auditRepo.addLog(

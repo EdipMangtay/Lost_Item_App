@@ -215,16 +215,19 @@ class FoundItemDetailsPage extends ConsumerWidget {
       );
     }
 
+    // Null check'ten sonra item kesinlikle null değil
+    final nonNullItem = item!;
+
     if (user == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator.adaptive()),
       );
     }
 
-    final isOwner = item.createdByOfficerId == user.uid;
+    final isOwner = nonNullItem.createdByOfficerId == user.uid;
 
     final canClaim = !isOwner &&
-        item.status == ItemStatus.inStorage &&
+        nonNullItem.status == ItemStatus.inStorage &&
         user.role == UserRole.student;
 
     final canApprove =
@@ -233,13 +236,13 @@ class FoundItemDetailsPage extends ConsumerWidget {
     final hasPendingClaims =
         claims.any((c) => c.status == ClaimStatus.pending);
 
-    final canMarkDelivered = item.status == ItemStatus.pendingClaim &&
+    final canMarkDelivered = nonNullItem.status == ItemStatus.pendingClaim &&
         canApprove &&
         claims.any((c) => c.status == ClaimStatus.approved);
 
     // Only non-owners can start chat.
     final canMessage =
-        !isOwner && item.status != ItemStatus.delivered;
+        !isOwner && nonNullItem.status != ItemStatus.delivered;
 
     return Scaffold(
       body: CustomScrollView(
@@ -248,7 +251,7 @@ class FoundItemDetailsPage extends ConsumerWidget {
             expandedHeight: 200,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text(item.title),
+              title: Text(nonNullItem.title),
               background: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -269,11 +272,11 @@ class FoundItemDetailsPage extends ConsumerWidget {
               children: [
                 photosAsync.when(
                   data: (photos) =>
-                      PhotoCarousel(photos: photos, category: item!.category),
+                      PhotoCarousel(photos: photos, category: nonNullItem.category),
                   loading: () =>
-                      PhotoCarousel(photos: const [], category: item!.category),
+                      PhotoCarousel(photos: const [], category: nonNullItem.category),
                   error: (_, __) =>
-                      PhotoCarousel(photos: const [], category: item!.category),
+                      PhotoCarousel(photos: const [], category: nonNullItem.category),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(16),
@@ -284,36 +287,36 @@ class FoundItemDetailsPage extends ConsumerWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              item.title,
+                              nonNullItem.title,
                               style: Theme.of(context).textTheme.headlineSmall,
                             ),
                           ),
-                          StatusBadge(status: item.status),
+                          StatusBadge(status: nonNullItem.status),
                         ],
                       ),
                       const SizedBox(height: 16),
                       _DetailRow(
                         icon: Icons.category_outlined,
                         label: 'Category',
-                        value: '${ItemCategories.icons[item.category]} ${item.category}',
+                        value: '${ItemCategories.icons[nonNullItem.category]} ${nonNullItem.category}',
                       ),
                       const SizedBox(height: 8),
                       _DetailRow(
                         icon: Icons.location_on_outlined,
                         label: 'Found Location',
-                        value: item.foundLocation,
+                        value: nonNullItem.foundLocation,
                       ),
                       const SizedBox(height: 8),
                       _DetailRow(
                         icon: Icons.calendar_today_outlined,
                         label: 'Found Date',
-                        value: item.foundAt.toFormattedDateTime(),
+                        value: nonNullItem.foundAt.toFormattedDateTime(),
                       ),
                       const SizedBox(height: 8),
                       _DetailRow(
                         icon: Icons.tag_outlined,
                         label: 'Item ID',
-                        value: item.id,
+                        value: nonNullItem.id,
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -322,7 +325,7 @@ class FoundItemDetailsPage extends ConsumerWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        item.description,
+                        nonNullItem.description,
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                       if (hasPendingClaims) ...[
@@ -357,7 +360,7 @@ class FoundItemDetailsPage extends ConsumerWidget {
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: () =>
-                                _showClaimBottomSheet(context, ref, item!),
+                                _showClaimBottomSheet(context, ref, nonNullItem),
                             icon: const Icon(Icons.flag_outlined),
                             label: const Text('Claim This Item'),
                           ),
@@ -367,7 +370,7 @@ class FoundItemDetailsPage extends ConsumerWidget {
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: () =>
-                                context.push('/item/${item!.id}/chat'),
+                                context.push('/item/${nonNullItem.id}/chat'),
                             icon: const Icon(Icons.chat_bubble_outline),
                             label: const Text('Chat'),
                           ),
@@ -378,7 +381,7 @@ class FoundItemDetailsPage extends ConsumerWidget {
                           width: double.infinity,
                           child: OutlinedButton.icon(
                             onPressed: () =>
-                                context.push('/item/${item!.id}/edit'),
+                                context.push('/item/${nonNullItem.id}/edit'),
                             icon: const Icon(Icons.edit),
                             label: const Text('Edit Item'),
                           ),
@@ -420,8 +423,8 @@ class FoundItemDetailsPage extends ConsumerWidget {
 
                               try {
                                 await photosRepo
-                                    .deleteAllPhotosForItem(item!.id);
-                                await itemsRepo.deleteItem(item!.id);
+                                    .deleteAllPhotosForItem(nonNullItem.id);
+                                await itemsRepo.deleteItem(nonNullItem.id);
 
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
@@ -455,7 +458,7 @@ class FoundItemDetailsPage extends ConsumerWidget {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: () => _markDelivered(context, ref, item!),
+                            onPressed: () => _markDelivered(context, ref, nonNullItem),
                             icon: const Icon(Icons.check_circle_outline),
                             label: const Text('Mark as Delivered'),
                             style: ElevatedButton.styleFrom(
