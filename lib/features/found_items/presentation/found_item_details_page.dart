@@ -19,7 +19,7 @@ class FoundItemDetailsPage extends ConsumerWidget {
     required this.itemId,
   });
 
-  void _showClaimBottomSheet(BuildContext context, WidgetRef ref, FoundItem item) {
+  void _showClaimBottomSheet(BuildContext context, WidgetRef ref, FoundItem item, AppUser user) {
     // item is guaranteed to be non-null here
     final nameController = TextEditingController();
     final studentNoController = TextEditingController();
@@ -81,18 +81,6 @@ class FoundItemDetailsPage extends ConsumerWidget {
                 ElevatedButton(
                   onPressed: () {
                     if (formKey.currentState!.validate()) {
-                      final currentUserAsync = ref.read(currentUserProvider);
-                      final user = currentUserAsync.value;
-                      if (user == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'You need to be signed in to submit a claim'),
-                          ),
-                        );
-                        return;
-                      }
-
                       final claimsNotifier =
                           ref.read(claimsStateProvider.notifier);
                       final auditRepo = ref.read(auditLogRepositoryProvider);
@@ -134,7 +122,7 @@ class FoundItemDetailsPage extends ConsumerWidget {
     );
   }
 
-  void _markDelivered(BuildContext context, WidgetRef ref, FoundItem item) {
+  void _markDelivered(BuildContext context, WidgetRef ref, FoundItem item, AppUser user) {
     // item is guaranteed to be non-null here
     showDialog(
       context: context,
@@ -148,17 +136,6 @@ class FoundItemDetailsPage extends ConsumerWidget {
           ),
           ElevatedButton(
             onPressed: () {
-              final currentUserAsync = ref.read(currentUserProvider);
-              final user = currentUserAsync.value;
-              if (user == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('You need to be signed in to mark delivery'),
-                  ),
-                );
-                return;
-              }
-
               final itemsNotifier =
                   ref.read(foundItemsStateProvider.notifier);
               final auditRepo = ref.read(auditLogRepositoryProvider);
@@ -215,20 +192,36 @@ class FoundItemDetailsPage extends ConsumerWidget {
       );
     }
 
-    // Null check'ten sonra item kesinlikle null değil
-    final nonNullItem = item!;
-
     if (user == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator.adaptive()),
       );
     }
 
+    // Null check'ten sonra item kesinlikle null değil
+    final nonNullItem = item;
+
     final isOwner = nonNullItem.createdByOfficerId == user.uid;
 
+    // Check if user has already made a claim for this item
+    final userHasClaim = claims.any((c) => c.requesterUid == user.uid);
+    final userHasPendingClaim = claims.any(
+      (c) => c.requesterUid == user.uid && c.status == ClaimStatus.pending,
+    );
+    final userHasApprovedClaim = claims.any(
+      (c) => c.requesterUid == user.uid && c.status == ClaimStatus.approved,
+    );
+
+    // User can claim if:
+    // - Not the owner
+    // - Item is in storage or pending claim (but not delivered)
+    // - User is a student
+    // - User hasn't already made a pending or approved claim
     final canClaim = !isOwner &&
-        nonNullItem.status == ItemStatus.inStorage &&
-        user.role == UserRole.student;
+        nonNullItem.status != ItemStatus.delivered &&
+        user.role == UserRole.student &&
+        !userHasPendingClaim &&
+        !userHasApprovedClaim;
 
     final canApprove =
         user.role == UserRole.officer || user.role == UserRole.admin;
@@ -328,7 +321,7 @@ class FoundItemDetailsPage extends ConsumerWidget {
                         nonNullItem.description,
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
-                      if (hasPendingClaims) ...[
+                      if (hasPendingClaims && !userHasPendingClaim) ...[
                         const SizedBox(height: 24),
                         Card(
                           color: Theme.of(context).colorScheme.errorContainer,
@@ -354,13 +347,91 @@ class FoundItemDetailsPage extends ConsumerWidget {
                           ),
                         ),
                       ],
+                      if (userHasPendingClaim) ...[
+                        const SizedBox(height: 24),
+                        Card(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.pending_outlined,
+                                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'You have a pending claim request for this item',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (userHasApprovedClaim) ...[
+                        const SizedBox(height: 24),
+                        Card(
+                          color: Theme.of(context).colorScheme.tertiaryContainer,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.check_circle_outline,
+                                  color: Theme.of(context).colorScheme.onTertiaryContainer,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Your claim request has been approved',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onTertiaryContainer,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (userHasClaim && !userHasPendingClaim && !userHasApprovedClaim) ...[
+                        const SizedBox(height: 24),
+                        Card(
+                          color: Theme.of(context).colorScheme.errorContainer,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.cancel_outlined,
+                                  color: Theme.of(context).colorScheme.onErrorContainer,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Your previous claim request was rejected',
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onErrorContainer,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 24),
                       if (canClaim)
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: () =>
-                                _showClaimBottomSheet(context, ref, nonNullItem),
+                                _showClaimBottomSheet(context, ref, nonNullItem, user),
                             icon: const Icon(Icons.flag_outlined),
                             label: const Text('Claim This Item'),
                           ),
@@ -458,7 +529,7 @@ class FoundItemDetailsPage extends ConsumerWidget {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: () => _markDelivered(context, ref, nonNullItem),
+                            onPressed: () => _markDelivered(context, ref, nonNullItem, user),
                             icon: const Icon(Icons.check_circle_outline),
                             label: const Text('Mark as Delivered'),
                             style: ElevatedButton.styleFrom(

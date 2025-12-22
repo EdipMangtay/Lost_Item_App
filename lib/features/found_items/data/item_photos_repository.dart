@@ -167,15 +167,15 @@ class ItemPhotosRepository {
         // Still continue - sometimes Firebase reports this but upload is successful
       }
 
-      // CRITICAL: Wait a moment after upload completes before getting URL
-      // Firebase Storage sometimes needs a brief moment to process the upload
+      // CRITICAL: Wait longer after upload completes before getting URL
+      // Firebase Storage sometimes needs time to process the upload
       // This prevents "yanıt ayrıştırılamıyor" (response parsing) errors
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(seconds: 2));
       
       // Get download URL with robust retry mechanism
       String url = '';
       int retryCount = 0;
-      const maxRetries = 5; // Increased retries for better reliability
+      const maxRetries = 8; // Increased retries for better reliability
       Exception? lastException;
       
       while (retryCount < maxRetries) {
@@ -187,10 +187,13 @@ class ItemPhotosRepository {
           
           debugPrint('[ItemPhotosRepository] Attempting to get download URL (attempt ${retryCount + 1}/$maxRetries)...');
           
-          url = await storageRef.getDownloadURL().timeout(
-            const Duration(seconds: 30),
+          // Try using taskSnapshot.ref first, then fallback to storageRef
+          final refToUse = retryCount == 0 ? taskSnapshot.ref : storageRef;
+          
+          url = await refToUse.getDownloadURL().timeout(
+            const Duration(seconds: 45),
             onTimeout: () {
-              throw Exception('Failed to get download URL: timeout after 30 seconds');
+              throw Exception('Failed to get download URL: timeout after 45 seconds');
             },
           );
           
@@ -223,6 +226,12 @@ class ItemPhotosRepository {
             rethrow;
           }
           
+          // For "unknown" errors (yanıt ayrıştırılamıyor), wait longer and retry
+          if (e.code == 'unknown' && retryCount < maxRetries - 1) {
+            debugPrint('[ItemPhotosRepository] Unknown error, will retry with longer delay');
+            // Continue to retry
+          }
+          
           if (retryCount >= maxRetries) {
             debugPrint('[ItemPhotosRepository] All retry attempts failed for getDownloadURL');
             // Upload was successful, but we can't get the URL
@@ -241,6 +250,12 @@ class ItemPhotosRepository {
           debugPrint(
             '[ItemPhotosRepository] Error getting download URL (attempt $retryCount/$maxRetries): $e',
           );
+          
+          // For unknown errors, wait a bit longer before retrying
+          if (e.toString().contains('yanıt ayrıştırılamıyor') || 
+              e.toString().contains('unknown')) {
+            await Future.delayed(Duration(seconds: (retryCount + 1) * 3));
+          }
           
           if (retryCount >= maxRetries) {
             debugPrint('[ItemPhotosRepository] All retry attempts failed for getDownloadURL');
@@ -298,7 +313,7 @@ class ItemPhotosRepository {
       debugPrint(
           '[ItemPhotosRepository] Photo document created under found_items/$itemId/photos/$photoId');
 
-      // Update coverPhotoUrl on parent item (only if not already set)
+      // Update coverPhotoUrl on parent item (always update to latest photo)
       try {
         await _firestore.collection('found_items').doc(itemId).update({
           'coverPhotoUrl': url,
@@ -308,7 +323,7 @@ class ItemPhotosRepository {
       } catch (e) {
         debugPrint(
             '[ItemPhotosRepository] Warning: Could not update coverPhotoUrl: $e');
-        // Non-critical, continue
+        // Non-critical, continue - photo is still saved in subcollection
       }
 
       return ItemPhoto(

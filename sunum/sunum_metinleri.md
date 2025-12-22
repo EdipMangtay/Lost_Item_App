@@ -400,3 +400,5 @@ In conclusion, the system is ready for production, and all tests have been succe
 - Each speech script is prepared to last approximately 2-3 minutes.
 - It is recommended to use natural language during the presentation and support it with slides.
 - Each person should provide visual support using slides while presenting their section.
+
+

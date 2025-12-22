@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:campus_lost_found/core/data/audit_log_repository.dart';
+import 'package:campus_lost_found/core/data/database_cleanup_repository.dart';
 import 'package:campus_lost_found/core/data/user_repository.dart';
 import 'package:campus_lost_found/core/domain/app_user.dart';
 import 'package:campus_lost_found/core/domain/item_photo.dart';
@@ -44,6 +45,10 @@ final firebaseAuthServiceProvider = Provider<FirebaseAuthService>((ref) {
 
 final chatRepositoryProvider = Provider<ChatRepository>((ref) {
   return ChatRepository();
+});
+
+final databaseCleanupRepositoryProvider = Provider<DatabaseCleanupRepository>((ref) {
+  return DatabaseCleanupRepository();
 });
 
 // State providers for reactivity

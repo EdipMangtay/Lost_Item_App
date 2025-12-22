@@ -18,16 +18,23 @@ class FoundItemCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // If mainPhotoUrl is not available, try to get first photo from subcollection
-    final photosAsync = item.mainPhotoUrl == null || item.mainPhotoUrl!.isEmpty
-        ? ref.watch(itemPhotosProvider(item.id))
-        : null;
+    // Always watch photos to get latest updates
+    final photosAsync = ref.watch(itemPhotosProvider(item.id));
 
+    // Use mainPhotoUrl if available, otherwise use first photo from subcollection
     String? photoUrl = item.mainPhotoUrl;
     if (photoUrl == null || photoUrl.isEmpty) {
-      final photos = photosAsync?.value;
+      final photos = photosAsync.value;
       if (photos != null && photos.isNotEmpty) {
-        photoUrl = photos.first.assetPath;
+        // Get the first photo with a valid URL
+        for (final photo in photos) {
+          if (photo.assetPath.isNotEmpty && 
+              (photo.assetPath.startsWith('http://') || 
+               photo.assetPath.startsWith('https://'))) {
+            photoUrl = photo.assetPath;
+            break;
+          }
+        }
       }
     }
 

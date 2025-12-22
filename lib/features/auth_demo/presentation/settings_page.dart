@@ -17,6 +17,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   late final TextEditingController _studentNoController;
 
   bool _isSaving = false;
+  bool _isClearing = false;
 
   @override
   void initState() {
@@ -66,6 +67,61 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     await auth.signOut();
     if (!mounted) return;
     context.go('/login');
+  }
+
+  Future<void> _clearAllData() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tüm Verileri Temizle'),
+        content: const Text(
+          'Bu işlem tüm bulunan eşyaları, talepleri, sohbetleri ve fotoğrafları silecektir. '
+          'Kullanıcı verileri korunacaktır. Devam etmek istediğinizden emin misiniz?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('İptal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Temizle'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isClearing = true);
+
+    try {
+      final cleanupRepo = ref.read(databaseCleanupRepositoryProvider);
+      await cleanupRepo.clearAllData();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tüm veriler başarıyla temizlendi'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Veri temizleme hatası: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isClearing = false);
+      }
+    }
   }
 
   @override
@@ -246,7 +302,30 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ),
                   ),
 
-                  // Debug-only demo reset card removed for production UX.
+                  // Admin/Officer section - only for officers and admins
+                  if (user.role == UserRole.officer || user.role == UserRole.admin) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      'Admin',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.delete_sweep, color: Colors.red),
+                        title: const Text('Tüm Verileri Temizle'),
+                        subtitle: const Text('Sunum için veritabanını temizle'),
+                        trailing: _isClearing
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : null,
+                        onTap: _isClearing ? null : _clearAllData,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
