@@ -1,90 +1,73 @@
-# Campus Lost & Found Management System
+# Campus Lost & Found
 
-A production-quality Flutter demo app for managing lost and found items on campus.
+**A Flutter/Firebase application for reporting found items, reviewing ownership claims and coordinating campus handovers.**
 
-## Features
+This academic application has evolved from an in-memory demo into a Firebase-backed implementation. The current entry point initialises Firebase; authentication, item/claim repositories, photos and chat use Firebase services. It should be treated as a development application until backend rules, permissions and deployment are verified.
 
-- **Found Item Registration**: Officers can register found items with photos, location, and details
-- **Search & Browse**: Students and staff can search and filter found items
-- **Claim Requests**: Users can submit claim requests with verification notes
-- **Claim Review**: Officers can approve/reject claim requests
-- **QR Code Generation**: Each item gets a unique QR code for tracking
-- **Role-Based Access**: Toggle between Student and Officer roles
-- **Audit Logging**: All actions are logged for accountability
+## Implemented flows
 
-## Getting Started
+- Email/password sign-in and registration through Firebase Authentication.
+- Found-item registration, categorisation, browsing and filtering.
+- Claim submission and officer review/handover screens.
+- Firestore-backed user, item, claim and chat repositories.
+- Item photo handling using Firebase Storage and Firestore metadata.
+- QR presentation and audit-log repository support.
 
-### Prerequisites
-
-- Flutter 3.x
-- Dart 3.x
-
-### Installation
-
-1. Install dependencies:
-```bash
-flutter pub get
-```
-
-2. Generate code (freezed, json_serializable):
-```bash
-flutter pub run build_runner build --delete-conflicting-outputs
-```
-
-3. Run the app:
-```bash
-flutter run
-```
-
-## Project Structure
-
-```
-lib/
-  main.dart                 # App entry point
-  app/                      # App configuration
-    app.dart               # Main app widget
-    router.dart            # Navigation routes
-    theme/                 # Theme configuration
-  core/                     # Core utilities and widgets
-    domain/                # Core domain models
-    data/                  # Core repositories
-    utils/                 # Utility functions
-    widgets/               # Reusable widgets
-    constants/             # App constants
-  features/                # Feature modules
-    found_items/           # Found items feature
-    claims/                # Claims feature
-    report_found/          # Report found feature
-    home/                  # Home screen
-    auth_demo/             # Settings/role management
-  providers/               # Riverpod providers
-```
-
-## Demo Mode
-
-This is a local-only demo app with in-memory data storage. No backend or database is required.
-
-- All data is stored in memory and resets on app restart
-- Use the Settings screen to toggle between Student and Officer roles
-- In debug mode, a "Reset Demo Data" button is available in Settings
+Role-dependent screens are implemented in the client. Client-side role checks are not a substitute for Firestore and Storage security rules.
 
 ## Architecture
 
-- **State Management**: flutter_riverpod
-- **Navigation**: go_router
-- **Models**: freezed + json_serializable
-- **UI**: Material 3
-- **Architecture**: Feature-first with clean separation of concerns
+```mermaid
+flowchart LR
+    UI[Flutter feature screens] --> State[Riverpod providers]
+    State --> Repo[Feature repositories]
+    Repo --> Auth[Firebase Authentication]
+    Repo --> DB[Cloud Firestore]
+    Repo --> Storage[Firebase Storage]
+```
 
-## Testing
+`go_router` handles navigation. Freezed and JSON serialization generate model helpers. Repositories expose streams to Riverpod providers so the UI reacts to changes.
 
-Run tests with:
+| Path | Purpose |
+| --- | --- |
+| `lib/main.dart` | Firebase startup and application entry point |
+| `lib/app/` | Routing, theme and application shell |
+| `lib/core/` | Shared models, repositories, utilities and widgets |
+| `lib/features/` | Authentication, found items, claims, reporting and chat |
+| `lib/providers/` | Repository wiring and reactive state |
+| `test/` | Existing widget/repository/utility tests |
+
+## Development setup
+
+Install a Flutter SDK compatible with `pubspec.lock` and a supported platform toolchain. Use a separate Firebase development project.
+
+1. Enable Email/Password authentication, Cloud Firestore and Storage in that project.
+2. Configure the target platforms with FlutterFire (`flutterfire configure`). Generate your own `lib/firebase_options.dart` and platform configuration files; do not reuse another developer's backend.
+3. Review and deploy least-privilege Firestore/Storage rules in your own Firebase project before using real accounts or photos. These backend rules are not versioned in this repository.
+4. Install dependencies and generate models:
+
 ```bash
+flutter pub get
+dart run build_runner build --delete-conflicting-outputs
+flutter run
+```
+
+Firebase client configuration identifies an application; a service-account private key must never be shipped in a client or committed to this repository. Keep real student details, messages and images out of test data.
+
+## Checks
+
+```bash
+flutter analyze
 flutter test
 ```
 
-## License
+The existing suite includes tests inherited from the earlier demo. Firebase integration and backend authorization still need dedicated test coverage; do not interpret these commands as evidence that every current cloud flow is verified.
 
-This is a demo project for educational purposes.
+## Current limits and next work
 
-# SWE_APP
+- Firebase configuration is environment-specific and the repository does not provide a reproducible backend-rules setup.
+- Generated iOS build output was committed under `assets/build/`; it is not source material and should be removed through a reviewed cleanup change.
+- The old demo comments and some tests need reconciliation with the Firebase implementation.
+- Backend rule tests, error-path coverage, claim authorization and a documented handover walkthrough are the next priorities.
+
+This README describes the implemented code paths without claiming a production deployment. Contributor ownership for team work should be recorded before using this project as evidence of individual delivery.
